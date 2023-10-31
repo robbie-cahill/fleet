@@ -1,7 +1,18 @@
 data "aws_region" "current" {}
 
+locals {
+  environment = [for k, v in var.fleet_config.extra_environment_variables : {
+    name  = k
+    value = v
+  }]
+  secrets = [for k, v in var.fleet_config.extra_secrets : {
+    name      = k
+    valueFrom = v
+  }]
+}
+
 resource "aws_cloudwatch_event_rule" "main" {
-  schedule_expression = "rate(1 hour)"
+  schedule_expression = var.schedule_expression
 }
 
 data "aws_iam_policy_document" "assume_role" {
@@ -42,6 +53,72 @@ data "aws_iam_policy_document" "ecs_events_run_task_with_any_role" {
 resource "aws_iam_role_policy" "ecs_events_run_task_with_any_role" {
   role   = aws_iam_role.ecs_events.id
   policy = data.aws_iam_policy_document.ecs_events_run_task_with_any_role.json
+}
+
+resource "aws_ecs_task_definition" "vuln-processing" {
+  family                   = var.fleet_config.family
+  cpu                      = var.fleet_config.vuln_processing_cpu
+  memory                   = var.fleet_config.vuln_processing_mem
+  execution_role_arn       = aws_iam_role.execution.arn
+  task_role_arn            = aws_iam_role.main.arn
+  network_mode             = "awsvpc"
+  requires_compatibilities = ["FARGATE"]
+
+  container_definitions = jsonencode([
+    {
+      name        = "fleet-vuln-processing"
+      image       = var.fleet_config.image
+      essential   = true
+      command     = ["fleet", "vuln_processing"]
+      user        = "root"
+      networkMode = "awsvpc"
+      mountPoints = [
+        {
+          sourceVolume  = "efs-mount"
+          containerPath = var.fleet_config.vuln_database_path
+          readOnly      = false
+        }
+      ],
+      secrets = concat(
+        [
+          {
+            name      = "FLEET_MYSQL_PASSWORD"
+            valueFrom = var.fleet_config.database.password_secret_arn
+          }
+        ], local.secrets),
+      environment = concat(
+        [
+          {
+            name  = "FLEET_MYSQL_USERNAME"
+            value = var.fleet_config.database.user
+          },
+          {
+            name  = "FLEET_MYSQL_DATABASE"
+            value = var.fleet_config.database.database
+          },
+          {
+            name  = "FLEET_MYSQL_ADDRESS"
+            value = var.fleet_config.database.address
+          },
+          {
+            name  = "FLEET_VULNERABILITIES_DISABLE_DATA_SYNC"
+            value = "true"
+          },
+          {
+            name  = "FLEET_VULNERABILITIES_DATABASES_PATH"
+            value = var.fleet_config.vuln_database_path
+          }
+        ], local.environment),
+      logConfiguration = {
+        logDriver = "awslogs"
+        options = {
+          awslogs-group         = var.fleet_config.awslogs.name
+          awslogs-region        = var.fleet_config.awslogs.region
+          awslogs-stream-prefix = "${var.fleet_config.awslogs.prefix}-vuln-procssing"
+        }
+      }
+    }
+  ])
 }
 
 resource "aws_cloudwatch_event_target" "ecs_scheduled_task" {

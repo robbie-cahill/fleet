@@ -10,6 +10,11 @@ variable "ecs_cluster" {
   description = "The ecs cluster module that is created by the byo-db module"
 }
 
+variable "fleet_config" {
+  description = "The root Fleet config object"
+}
+
+
 variable "execution_iam_role_arn" {
   description = "The ARN of the fleet execution role, this is necessary to pass role from ecs events"
 }
