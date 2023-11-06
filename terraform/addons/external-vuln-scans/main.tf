@@ -11,9 +11,6 @@ locals {
   }]
 }
 
-resource "aws_cloudwatch_event_rule" "main" {
-  schedule_expression = var.schedule_expression
-}
 
 data "aws_iam_policy_document" "assume_role" {
   statement {
@@ -40,6 +37,12 @@ data "aws_iam_policy_document" "ecs_events_run_task_with_any_role" {
   }
 
   statement {
+    effect = "Allow"
+    actions = ["sts:AssumeRole"]
+    resources = [var.task_role_arn]
+  }
+
+  statement {
     effect    = "Allow"
     actions   = ["ecs:RunTask"]
     resources = [replace(var.task_definition.arn, "/:\\d+$/", ":*")]
@@ -59,8 +62,8 @@ resource "aws_ecs_task_definition" "vuln-processing" {
   family                   = var.fleet_config.family
   cpu                      = var.fleet_config.vuln_processing_cpu
   memory                   = var.fleet_config.vuln_processing_mem
-  execution_role_arn       = aws_iam_role.execution.arn
-  task_role_arn            = aws_iam_role.main.arn
+  execution_role_arn       = var.execution_iam_role_arn
+  task_role_arn            = var.task_role_arn
   network_mode             = "awsvpc"
   requires_compatibilities = ["FARGATE"]
 
@@ -72,13 +75,6 @@ resource "aws_ecs_task_definition" "vuln-processing" {
       command     = ["fleet", "vuln_processing"]
       user        = "root"
       networkMode = "awsvpc"
-      mountPoints = [
-        {
-          sourceVolume  = "efs-mount"
-          containerPath = var.fleet_config.vuln_database_path
-          readOnly      = false
-        }
-      ],
       secrets = concat(
         [
           {
@@ -102,7 +98,7 @@ resource "aws_ecs_task_definition" "vuln-processing" {
           },
           {
             name  = "FLEET_VULNERABILITIES_DISABLE_DATA_SYNC"
-            value = "true"
+            value = var.fleet_config
           },
           {
             name  = "FLEET_VULNERABILITIES_DATABASES_PATH"
@@ -121,6 +117,10 @@ resource "aws_ecs_task_definition" "vuln-processing" {
   ])
 }
 
+resource "aws_cloudwatch_event_rule" "main" {
+  schedule_expression = var.schedule_expression
+}
+
 resource "aws_cloudwatch_event_target" "ecs_scheduled_task" {
   arn      = var.ecs_cluster.cluster_arn
   rule     = aws_cloudwatch_event_rule.main.name
@@ -128,22 +128,11 @@ resource "aws_cloudwatch_event_target" "ecs_scheduled_task" {
 
   ecs_target {
     task_count          = 1
-    task_definition_arn = var.task_definition.arn
+    task_definition_arn = aws_ecs_task_definition.vuln-processing.arn
     launch_type         = "FARGATE"
     network_configuration {
       subnets         = var.ecs_service.network_configuration[0].subnets
       security_groups = var.ecs_service.network_configuration[0].security_groups
     }
   }
-
-  input = jsonencode({
-    containerOverrides = [
-      {
-        name    = "fleet",
-        command = ["fleet", "vuln_processing"]
-        cpu     = var.vuln_processing_cpu,
-        memory  = var.vuln_processing_memory,
-      },
-    ]
-  })
 }
