@@ -15,8 +15,12 @@ variable "fleet_config" {
   type        = any
 }
 
-variable "logging_options" {
-  type = map(string)
+variable "awslogs_config" {
+  type = object({
+    group  = string
+    region = string
+    prefix = string
+  })
 }
 
 

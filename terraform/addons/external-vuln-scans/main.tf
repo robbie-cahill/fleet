@@ -101,7 +101,11 @@ resource "aws_ecs_task_definition" "vuln-processing" {
         ], local.environment),
         logConfiguration = {
           logDriver = "awslogs"
-          options   = var.logging_options
+          options = {
+            awslogs-group         = var.awslogs_config.group
+            awslogs-region        = var.awslogs_config.region
+            awslogs-stream-prefix = "${var.awslogs_config.prefix}-vuln-processing"
+          }
         }
       }
   ], var.fleet_config.sidecars))
