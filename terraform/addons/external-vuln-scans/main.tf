@@ -92,7 +92,7 @@ resource "aws_ecs_task_definition" "vuln-processing" {
             },
             {
               name  = "FLEET_VULNERABILITIES_DISABLE_DATA_SYNC"
-              value = var.fleet_config
+              value = var.disable_data_sync
             },
             {
               name  = "FLEET_VULNERABILITIES_DATABASES_PATH"

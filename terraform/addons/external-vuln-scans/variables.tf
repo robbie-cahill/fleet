@@ -12,7 +12,7 @@ variable "ecs_cluster" {
 
 variable "fleet_config" {
   description = "The root Fleet config object"
-  type = any
+  type        = any
 }
 
 variable "logging_options" {
@@ -43,4 +43,9 @@ variable "vuln_processing_cpu" {
   // note must conform to FARGETE breakpoints https://docs.aws.amazon.com/AmazonECS/latest/userguide/fargate-task-defs.html
   default     = 1024
   description = "The amount of CPU to dedicate to the vuln processing command"
+}
+
+variable "disable_data_sync" {
+  default     = "false"
+  description = "disable data sync instructs fleet vuln processing to no attempt to pull down new vuln db and artifacts(its expecting everything to already be provisioned at the vulnerabilities database path)"
 }
