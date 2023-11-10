@@ -53,7 +53,7 @@ resource "aws_iam_role_policy" "ecs_events_run_task_with_any_role" {
 }
 
 resource "aws_ecs_task_definition" "vuln-processing" {
-  family                   = var.fleet_config.family
+  family                   = "${var.fleet_config.family}-vuln-processing"
   cpu                      = var.vuln_processing_cpu
   memory                   = var.vuln_processing_memory
   execution_role_arn       = var.execution_iam_role_arn
