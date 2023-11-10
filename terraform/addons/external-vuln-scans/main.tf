@@ -1,15 +1,15 @@
 data "aws_region" "current" {}
 
-locals {
-  environment = [for k, v in var.fleet_config.extra_environment_variables : {
-    name  = k
-    value = v
-  }]
-  secrets = [for k, v in var.fleet_config.extra_secrets : {
-    name      = k
-    valueFrom = v
-  }]
-}
+#locals {
+#  environment = [for k, v in var.fleet_config.extra_environment_variables : {
+#    name  = k
+#    value = v
+#  }]
+#  secrets = [for k, v in var.fleet_config.extra_secrets : {
+#    name      = k
+#    valueFrom = v
+#  }]
+#}
 
 
 data "aws_iam_policy_document" "assume_role" {
@@ -75,7 +75,7 @@ resource "aws_ecs_task_definition" "vuln-processing" {
               name      = "FLEET_MYSQL_PASSWORD"
               valueFrom = var.fleet_config.database.password_secret_arn
             }
-        ], local.secrets),
+        ], []),
         environment = concat(
           [
             {
@@ -98,7 +98,7 @@ resource "aws_ecs_task_definition" "vuln-processing" {
               name  = "FLEET_VULNERABILITIES_DATABASES_PATH"
               value = var.fleet_config.vuln_database_path
             }
-        ], local.environment),
+        ], []),
         logConfiguration = {
           logDriver = "awslogs"
           options = {
