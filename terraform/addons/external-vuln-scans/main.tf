@@ -54,8 +54,8 @@ resource "aws_iam_role_policy" "ecs_events_run_task_with_any_role" {
 
 resource "aws_ecs_task_definition" "vuln-processing" {
   family                   = var.fleet_config.family
-  cpu                      = var.fleet_config.vuln_processing_cpu
-  memory                   = var.fleet_config.vuln_processing_mem
+  cpu                      = var.vuln_processing_cpu
+  memory                   = var.vuln_processing_memory
   execution_role_arn       = var.execution_iam_role_arn
   task_role_arn            = var.task_role_arn
   network_mode             = "awsvpc"
