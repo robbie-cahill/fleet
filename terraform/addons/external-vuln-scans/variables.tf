@@ -12,7 +12,13 @@ variable "ecs_cluster" {
 
 variable "fleet_config" {
   description = "The root Fleet config object"
+  type = any
 }
+
+variable "logging_options" {
+  type = map(string)
+}
+
 
 variable "schedule_expression" {
   description = "The scheduled expression in which the cloudwatch target should be executed"
