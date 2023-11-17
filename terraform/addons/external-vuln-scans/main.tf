@@ -1,15 +1,19 @@
 data "aws_region" "current" {}
 
-#locals {
-#  environment = [for k, v in var.fleet_config.extra_environment_variables : {
-#    name  = k
-#    value = v
-#  }]
-#  secrets = [for k, v in var.fleet_config.extra_secrets : {
-#    name      = k
-#    valueFrom = v
-#  }]
-#}
+locals {
+  environment = [
+    for k, v in var.fleet_config.extra_environment_variables : {
+      name  = k
+      value = v
+    }
+  ]
+  secrets = [
+    for k, v in var.fleet_config.extra_secrets : {
+      name      = k
+      valueFrom = v
+    }
+  ]
+}
 
 
 data "aws_iam_policy_document" "assume_role" {
@@ -61,54 +65,51 @@ resource "aws_ecs_task_definition" "vuln-processing" {
   network_mode             = "awsvpc"
   requires_compatibilities = ["FARGATE"]
 
-  container_definitions = jsonencode(
-    concat([
-      {
-        name        = "fleet-vuln-processing"
-        image       = var.fleet_config.image
-        essential   = true
-        command     = ["fleet", "vuln_processing"]
-        networkMode = "awsvpc"
-        secrets = concat(
-          [
-            {
-              name      = "FLEET_MYSQL_PASSWORD"
-              valueFrom = var.fleet_config.database.password_secret_arn
-            }
-        ], []),
-        environment = concat(
-          [
-            {
-              name  = "FLEET_MYSQL_USERNAME"
-              value = var.fleet_config.database.user
-            },
-            {
-              name  = "FLEET_MYSQL_DATABASE"
-              value = var.fleet_config.database.database
-            },
-            {
-              name  = "FLEET_MYSQL_ADDRESS"
-              value = var.fleet_config.database.address
-            },
-            {
-              name  = "FLEET_VULNERABILITIES_DISABLE_DATA_SYNC"
-              value = var.disable_data_sync
-            },
-            {
-              name  = "FLEET_VULNERABILITIES_DATABASES_PATH"
-              value = var.fleet_config.vuln_database_path
-            }
-        ], []),
-        logConfiguration = {
-          logDriver = "awslogs"
-          options = {
-            awslogs-group         = var.awslogs_config.group
-            awslogs-region        = var.awslogs_config.region
-            awslogs-stream-prefix = "${var.awslogs_config.prefix}-vuln-processing"
-          }
+  container_definitions = jsonencode([
+    {
+      name        = "fleet-vuln-processing"
+      image       = var.fleet_config.image
+      essential   = true
+      command     = ["fleet", "vuln_processing"]
+      networkMode = "awsvpc"
+      secrets     = [
+        {
+          name      = "FLEET_MYSQL_PASSWORD"
+          valueFrom = var.fleet_config.database.password_secret_arn
+        }
+      ]
+      environment = [
+        {
+          name  = "FLEET_MYSQL_USERNAME"
+          value = var.fleet_config.database.user
+        },
+        {
+          name  = "FLEET_MYSQL_DATABASE"
+          value = var.fleet_config.database.database
+        },
+        {
+          name  = "FLEET_MYSQL_ADDRESS"
+          value = var.fleet_config.database.address
+        },
+        {
+          name  = "FLEET_VULNERABILITIES_DISABLE_DATA_SYNC"
+          value = var.disable_data_sync
+        },
+        {
+          name  = "FLEET_VULNERABILITIES_DATABASES_PATH"
+          value = var.fleet_config.vuln_database_path
+        }
+      ],
+      logConfiguration = {
+        logDriver = "awslogs"
+        options   = {
+          awslogs-group         = var.awslogs_config.group
+          awslogs-region        = var.awslogs_config.region == null ? data.aws_region.current.name : var.awslogs_config.region
+          awslogs-stream-prefix = "${var.awslogs_config.prefix}-vuln-processing"
         }
       }
-  ], var.fleet_config.sidecars))
+    }
+  ])
 }
 
 resource "aws_cloudwatch_event_rule" "main" {
